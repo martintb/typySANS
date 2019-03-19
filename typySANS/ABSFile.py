@@ -1,6 +1,12 @@
+'''
+WIP
+
+All reading/writing of ABS files should be outsourced to this routine
+'''
 import numpy as np
 import pandas as pd
 import pathlib
+
 
    
 
