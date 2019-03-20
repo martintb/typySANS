@@ -235,6 +235,11 @@ class InteractiveTrimmingPlot(object):
             line1, = plt.plot(x1,y1,color=color,mfc='white',**kw)
             line2, = plt.plot(x1[sl],y1[sl],color=color,label=config,**kw)
             
+            # need to enforce zorder because matplotlib seems to scramble
+            # the order randomly on update
+            line1.set_zorder(-i)
+            line2.set_zorder(-i)
+            
             df_lines.append([line1,line2])
         plt.gca().set_xscale('log')
         plt.gca().set_yscale('log')
