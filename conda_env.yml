@@ -1,0 +1,20 @@
+name: typySANS
+channels:
+    - conda-forge
+    - defaults
+dependencies:
+    - python =3
+    
+    - numpy
+    - scipy
+    - pandas
+    
+    - matplotlib
+    - seaborn
+    - ipympl
+    
+    - jupyter
+    - jupyterlab
+    - ipywidgets
+    - widgetsnbextension
+    - nodejs
