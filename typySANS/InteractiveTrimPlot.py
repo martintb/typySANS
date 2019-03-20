@@ -1,7 +1,8 @@
 import numpy as np 
 import pandas as pd
 import matplotlib.pyplot as plt
-
+import pathlib
+import datetime
 from ipywidgets import Dropdown,IntSlider,HBox,VBox,Output,Label,Checkbox
 
 def readABS(fpath,trimLo=0,trimHi=0):
@@ -55,26 +56,42 @@ def readABS(fpath,trimLo=0,trimHi=0):
     df = pd.DataFrame(data_table,columns=['q','I','dI','dq','qbar','shadfac'],)
     return df,config_dict
 
-def writeABS(fname,dfABS,dfShift,shiftConfig,trimLo,trimHi,path='./',shift=True):
+def writeABS(fname,dfABS,dfShift,shiftConfig,df_trim,path='./',shift=True,sort_by_q=True):
     header  = 'COMBINED FILE CREATED: {}\n'
-    header += 'pyNSORT-ed   {}	  +  {}	  +  {}	 + none\n'
+    header += 'pyNSORT-ed {} ' + '+ {} '*(dfABS.shape[0]-1) + '\n'
     header += 'normalized to   {}\n'
-    header += 'multiplicative factor 1 =   {}	 multiplicative factor 2 =    {}	 multiplicative factor 3 =            {}\n'
+    header += 'multiplicative factors: ' + '{} '*dfABS.shape[0] + '\n'
     header += 'The 6 columns are | Q (1/A) | I(Q) (1/cm) | std. dev. I(Q) (1/cm) | sigmaQ | meanQ | ShadowFactor|\n'
     
     path = pathlib.Path(path) / fname
     with open(path,'w') as f:
         now = datetime.datetime.strftime(datetime.datetime.now(),'%T %D')
-        f.write(header.format(now,*dfABS.values,dfABS.loc[shiftConfig],*dfShift.values))
+        if shiftConfig is None:
+            shiftFile = 'None'
+        else:
+            shiftFile = dfABS.loc[shiftConfig]
+        f.write(header.format(now,*dfABS.values,shiftFile,*dfShift.values))
         
+    allABSData = []
+    for config,fname in dfABS.iteritems():
+        if pd.isna(fname):
+            continue
+        trimLo = df_trim.loc[config]['Lo']
+        trimHi = df_trim.loc[config]['Hi']
+        ABSData,_ = readABS(fname,trimLo,trimHi)
+        ABSData = ABSData.values
+        if shift:
+            ABSData[:,1]*=dfShift.loc[config] #shift I
+            ABSData[:,2]*=dfShift.loc[config] #shift sigmaI
+        allABSData.append(ABSData)
+            
+    allABSData = np.vstack(allABSData)
+    if sort_by_q:
+        sort_mask = np.argsort(allABSData[:,0])
+        allABSData = allABSData[sort_mask] 
     with open(path,'ba') as f:
-        for config,fname in dfABS.iteritems():
-            ABSData,_ = readABS(fname,trimLo,trimHi)
-            ABSData = ABSData.values
-            if shift:
-                ABSData[:,1]*=dfShift[config] #shift I
-                ABSData[:,2]*=dfShift[config] #shift sigmaI
-            np.savetxt(f,ABSData)
+        np.savetxt(f,allABSData)
+            
             
 def buildShiftTable(df_xy,df_trim,shiftConfig):
     n_configs = df_xy.shape[0]
