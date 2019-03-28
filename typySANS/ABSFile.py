@@ -5,36 +5,98 @@ All reading/writing of ABS files should be outsourced to this routine
 '''
 import numpy as np
 import pandas as pd
+import datetime
 import pathlib
 
+def readABS(fpath,trimLo=0,trimHi=0):
+    '''Read ASCII .ABS files and, if possible, extract instrument configuration 
+    
+    This method attempts to flexibly handle the two types of ABS files generated from the NCNR 
+    Igor macros: single-configuration reduced data and multi-configuration combined files. ABS 
+    files have a variable number of header lines and then 6 columns of data: q, I, dI, dq, 
+    meanQ, ShadowFactor.
+    
+    Arguments
+    ---------
+    fpath: str or pathlib.Path
+        Full path with filename to an ABS file
+    
+    trimLo,trimHi: int
+        Number of points to remove from the low-q and hi-q ends of the dataset, respectively
+    
+    Returns:
+    --------
+    df: pandas.Dataframe
+        A dataframe with columns: q, I, dI, dq, meanQ, ShadowFactor
+    
+    config: dict
+        For single-configuration ABS files: A dictionary of instrument parameters read from the header
+        For multi-configuration ABS files: empty dictionary
+    
+    '''
+    config_dict={}
+    with open(fpath,'r') as f:
+        skiprows = 1
+        while True:
+            line = f.readline()
+            skiprows+=1
+            
+            if 'LABEL:' in line:
+                label = line.split(':')[-1]
+            elif 'MON CNT' in line:
+                keys1 = ['MONCNT','LAMBDA','DET ANG','DET DIST','TRANS','THICK','AVE','STEP']
+                values1 = f.readline().split()
+                keys2 = ['BCENT(X,Y)','A1(mm)','A2(mm)','A1A2DIST(m)','DL/L','BSTOP(mm)','DET_TYP']
+                _ = f.readline()
+                values2 = f.readline().split()
+                config_dict = {k:v for k,v in zip(keys1+keys2,values1+values2)}
+                skiprows += 2
+            elif 'The 6 columns are' in line:
+                break
+            
+    data_table = np.loadtxt(fpath,skiprows=skiprows)
+    data_table = data_table[trimLo:-1-trimHi]
+    df = pd.DataFrame(data_table,columns=['q','I','dI','dq','qbar','shadfac'],)
+    return df,config_dict
 
-   
-
-def writeABS(fname,df,shifts,trim,path='./',shift=True):
+def writeABS(fname,dfABS,dfShift,shiftConfig,df_trim,path='./',shift=True,sort_by_q=True):
     header  = 'COMBINED FILE CREATED: {}\n'
-    header += 'pyNSORT-ed   {}	  +  {}	  +  {}	 + none\n'
+    header += 'pyNSORT-ed {} ' + '+ {} '*(dfABS.shape[0]-1) + '\n'
     header += 'normalized to   {}\n'
-    header += 'multiplicative factor 1-2 =   {}	 multiplicative factor 2-3 =    {}	 multiplicative factor 3-4 =            0\n'
+    header += 'multiplicative factors: ' + '{} '*dfABS.shape[0] + '\n'
     header += 'The 6 columns are | Q (1/A) | I(Q) (1/cm) | std. dev. I(Q) (1/cm) | sigmaQ | meanQ | ShadowFactor|\n'
     
     path = pathlib.Path(path) / fname
     with open(path,'w') as f:
-        if shift:
-            shift_1 = shifts['shift_1'][0]
-            shift_2 = shifts['shift_2'][0]
+        now = datetime.datetime.strftime(datetime.datetime.now(),'%T %D')
+        if shiftConfig is None:
+            shiftFile = 'None'
         else:
-            shift_1 = shift_2 = 1.0
-        f.write(header.format('today',df.LowQ,df.MidQ,df.HighQ,df.MidQ,shift_1,shift_2))
+            shiftFile = dfABS.loc[shiftConfig]
+        f.write(header.format(now,*dfABS.values,shiftFile,*dfShift.values))
         
-    with open(path,'ba') as f:
-        for qlabel in ['LowQ','MidQ','HighQ']:
-            _,_,_,_,data,dataTrim = getTrimmedABSData(df[qlabel],trim[qlabel])
-            if shift:
-                dataTrim[:,1]*=shifts[qlabel] #shift I
-                dataTrim[:,2]*=shifts[qlabel] #shift sigmaI
-            np.savetxt(f,dataTrim)
+    allABSData = []
+    for config,fname in dfABS.iteritems():
+        if pd.isna(fname):
+            continue
+        trimLo = df_trim.loc[config]['Lo']
+        trimHi = df_trim.loc[config]['Hi']
+        ABSData,_ = readABS(fname,trimLo,trimHi)
+        ABSData = ABSData.values
+        if shift:
+            ABSData[:,1]*=dfShift.loc[config] #shift I
+            ABSData[:,2]*=dfShift.loc[config] #shift sigmaI
+        allABSData.append(ABSData)
             
-    print('Wrote ABS file:',path)
+    allABSData = np.vstack(allABSData)
+    if sort_by_q:
+        sort_mask = np.argsort(allABSData[:,0])
+        allABSData = allABSData[sort_mask] 
+    with open(path,'ba') as f:
+        np.savetxt(f,allABSData)
+
+
+   
 
 class ABSFile(object):
     '''
