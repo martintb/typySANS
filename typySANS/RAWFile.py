@@ -5,6 +5,7 @@ import os
 class RAWFile(object):
   def __init__(self,fileName):
     self.reset(fileName)
+    self.silent = silent
 
   def reset(self,fileName):
     self.fileName = fileName
@@ -14,11 +15,16 @@ class RAWFile(object):
   def __getitem__(self,key):
     return self.SANSData[key]
 
+  def read(self):
+      self.readFile()
+      self.readHeader()
+      self.readDetector()
+
   def readFile(self,force=False):
     if force or (self.fileBytes is not None): #already read
       return
 
-    print('--> Reading all bytes from {}'.format(os.path.basename(self.fileName)))
+    # print('--> Reading all bytes from {}'.format(os.path.basename(self.fileName)))
     with open(self.fileName,'rb') as f:
       self.fileBytes = f.read()
 
@@ -30,19 +36,19 @@ class RAWFile(object):
 
     fileSize = len(self.fileBytes)
     if len(self.fileBytes)<100:
-      print('==> Not RAW! File too small to be RAW.')
+      # print('==> Not RAW! File too small to be RAW.')
       return False
 
     if not (fileSize == 33316): 
-      print('==> Not RAW! File size incorrect ({} != 33316).'.format(fileSize))
+      # print('==> Not RAW! File size incorrect ({} != 33316).'.format(fileSize))
       return False
 
     runType = self.readChars(start=75,num=3)
     if not (('RAW' in runType) or ('SIM' in runType)):
-      print('==> Not RAW! Run type is incorrect ({} != RAW or SIM).'.format(runType))
+      # print('==> Not RAW! Run type is incorrect ({} != RAW or SIM).'.format(runType))
       return False
 
-    print('--> {} appears to be RAW!'.format(os.path.basename(self.fileName)))
+    # print('--> {} appears to be RAW!'.format(os.path.basename(self.fileName)))
     return True
 
   def readInts(self,start,num):
@@ -123,7 +129,7 @@ class RAWFile(object):
     return struct.unpack('f', res)[0]
 
   def printHeader(self):
-    print('--> Displaying all header data...')
+    # print('--> Displaying all header data...')
     keys = sorted(self.SANSData.keys())
     for k in keys:
       if k != 'rawCounts':
@@ -133,7 +139,7 @@ class RAWFile(object):
     '''
     Based on translated NCNR_SANS_Package_7.50/NCNR_User_Procedures/Reduction/SANS/NCNR_DataReadWrite.ipf
     '''
-    print('--> Processing bytes from header...')
+    # print('--> Processing bytes from header...')
     SANSData = self.SANSData
 
     SANSData['fileName']    = self.readChars(start=2,num=21)
@@ -264,7 +270,7 @@ class RAWFile(object):
     SANSData['polarizationHoriz']    = vals[0]
     SANSData['polarizationVert']     = vals[1]
 
-    print('--> Done processing header!')
+    # print('--> Done processing header!')
 
   def readDetector(self):
     # So the num value here is kind of magic...  We know it starts on byte 514, but during
@@ -273,12 +279,12 @@ class RAWFile(object):
     # we need to read many more integers from this section of the file. Even more unfortunate
     # is that Igor magically determines how many integers read at this point. I believe the 
     # resulting code below reads the rest of the file, but I'm not entirely sure. It works....
-    print('--> Reading detector counts...')
+    # print('--> Reading detector counts...')
     num = len(self.fileBytes[514:])//2
     rawDet = self.readShorts(start=514,num=num)
     rawDet = np.array(self.SkipAndDecompress(rawDet)).reshape((128,128))
     self.SANSData['rawCounts']     = rawDet
-    print('--> Done reading detector counts!')
+    # print('--> Done reading detector counts!')
   
   def SkipAndDecompress(self,arr_in):
     '''
