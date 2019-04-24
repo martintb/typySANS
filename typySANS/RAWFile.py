@@ -3,9 +3,10 @@ import numpy as np
 import os
 
 class RAWFile(object):
-  def __init__(self,fileName):
+  def __init__(self,fileName,readFileNow=True):
     self.reset(fileName)
-    self.silent = silent
+    if readFileNow:
+        self.read()
 
   def reset(self,fileName):
     self.fileName = fileName
