@@ -216,7 +216,7 @@ class TrimPlot(object):
         self.debug_out = Output()
         return VBox([self.select,tabs,self.debug_out])
     
-    def run_widget(self)
+    def run_widget(self):
         '''Primary entry point for users'''
         widget = self.build_widget()
         
