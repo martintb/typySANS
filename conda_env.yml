@@ -18,3 +18,8 @@ dependencies:
     - ipywidgets
     - widgetsnbextension
     - nodejs
+
+    - sasview
+
+    - pip:
+        - ipyfilechooser
