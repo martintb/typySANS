@@ -1,26 +1,18 @@
 import numpy as np
 import matplotlib.pyplot as plt
+
 import sasmodels.data
 import sasmodels.core
 import sasmodels.direct_model
-from ipywidgets import Dropdown,IntSlider,FloatLogSlider,\
-                       FloatSlider,HBox,VBox,Output,Label,\
-                       Checkbox,Tab,Text,Textarea,Button
 
-from typySANS.ABSFile import readABS
+from ipywidgets import Dropdown,Button,\
+                       HBox,VBox,Tab,\
+                       Output,Label,\
+                       Text,FloatText,IntText
+
 from ipyfilechooser import FileChooser
+from typySANS.misc import for_all_methods
 
-
-def for_all_methods(decorator):
-    ''' Decorate all methods of a class
-    From https://stackoverflow.com/a/6307868
-    '''
-    def decorate(cls):
-        for attr in cls.__dict__: # there's propably a better way to do this
-            if callable(getattr(cls, attr)):
-                setattr(cls, attr, decorator(getattr(cls, attr)))
-        return cls
-    return decorate
 
 debug_output = Output()
 @for_all_methods(debug_output.capture())
@@ -32,8 +24,6 @@ class SasViewPlot(object):
         self.calculator = None
 
         self.theory_y = None
-        self.data_x = None
-        self.data_y = None
 
     def _update_model(self,event):
 
@@ -100,9 +90,9 @@ class SasViewPlot(object):
             except ValueError:
                 parms[i.description] = i.value
             
-        self.Iq = self.calculator(**parms)
+        self.theory_y = self.calculator(**parms)
         self.theory.set_xdata(self.Data1D.x[~self.Data1D.mask.astype(bool)])
-        self.theory.set_ydata(self.Iq)
+        self.theory.set_ydata(self.theory_y)
 
         if (self.Data1D is not None) and (self.Data1D.y is not None):
             self.data.set_xdata(self.Data1D.x)
@@ -112,7 +102,7 @@ class SasViewPlot(object):
         self.ax.autoscale()
         
     def _load_data(self,event):
-        data_path = self.data_path.selected
+        data_path = self.file_chooser.selected
         if data_path is None:
             return
 
@@ -123,13 +113,10 @@ class SasViewPlot(object):
         self._update_model(None)
         
     def _init_widget(self):
+
         self.model_select = Dropdown(options = sasmodels.core.list_models())
         self.model_select.value = 'sphere'
         self.model_select.observe(self._update_model,names='value')
-        
-        self.parameters = VBox([])
-        self.parameters_pd = VBox([])
-        self.docs = Output()
         
         self.qmin = Text(description='qmin',value='0.001')
         self.qmax = Text(description='qmax',value='0.5')
@@ -138,16 +125,21 @@ class SasViewPlot(object):
         for i in (self.qmin,self.qmax,self.numq):
             i.on_submit(self._update_model)
         
-        self.data_path = FileChooser()
+        self.file_chooser = FileChooser()
         self.load_data = Button(description='Load Data')
         self.load_data.on_click(self._load_data)
+
+        self.parameters = VBox([])
+        self.parameters_pd = VBox([])
+        self.docs = Output()
         
-        self.tabs = Tab([self.parameters,self.parameters_pd,self.qrange,VBox([self.data_path,self.load_data]),self.docs])
+        self.tabs = Tab([self.parameters,self.parameters_pd,self.qrange,VBox([self.file_chooser,self.load_data]),self.docs])
         self.tabs.set_title(0,'Model Params')
         self.tabs.set_title(1,'Dispersity')
         self.tabs.set_title(2,'Q-Range')
         self.tabs.set_title(3,'Load Data')
         self.tabs.set_title(4,'Documentation')
+        self.tabs.layout = {'height':'300px','width':'600px'}
         
         self.output = Output()
         
@@ -155,27 +147,34 @@ class SasViewPlot(object):
         return widget
     
     def _init_plot(self):
-        fig,ax = plt.subplots(1,1,figsize=(6,3))
-        self.fig = fig
-        self.ax = ax
+        self.fig = plt.figure(0)
+        self.fig.set_figwidth(6)
+        self.fig.set_figheight(3)
+        self.fig.clear()
+        if not self.fig.get_axes():
+            self.ax = self.fig.add_subplot(111)
+        else:
+            self.ax = self.fig.get_axes()[0]
         
         
         self.data = plt.Line2D([0.001,0.5],[np.nan,np.nan])
         self.data.set_marker('.')
         self.data.set_linestyle('None')
-        ax.add_line(self.data)
+        self.ax.add_line(self.data)
         
         self.theory = plt.Line2D([0.001,0.5],[np.nan,np.nan])
         self.data.set_color('red')
-        ax.add_line(self.theory)
+        self.ax.add_line(self.theory)
         
-        ax.set(xlim=(0.001,0.5),xscale='log',yscale='log')
-        ax.set_ylabel('dΣ/dΩ [$cm^{-1}$]')
-        ax.set_xlabel('q [$Å^{-1}$]')
+        self.ax.set(xlim=(0.001,0.5),xscale='log',yscale='log')
+        self.ax.set_ylabel('dΣ/dΩ [$cm^{-1}$]')
+        self.ax.set_xlabel('q [$Å^{-1}$]')
     
     def run_widget(self):
         self._init_plot()
         widget = self._init_widget()
+        widget.children = tuple([self.fig.canvas] + list(widget.children))
+        # widget = HBox([self.fig.canvas,widget])
         self._update_model(None)
         
         return widget

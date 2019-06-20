@@ -7,29 +7,33 @@ def buildShiftTable(df_xy,df_trim,shiftConfig):
     if shiftConfig is None:
         shiftTable = np.ones(n_configs)
     else:
-        shiftIndex  = df_xy.index.get_loc(shiftConfig) # get index of curve to shift to
         
-        shiftTable = []
-        for currIndex in range(n_configs):
-            # determine which direction the shiftIndex is in (higher or lower q)
-            shiftDir = np.sign(currIndex-shiftIndex) 
-            shift = 1.0 #default shift is no-shift
-            if not (shiftDir==0):
-                # need to walk from "shiftIndex" curve back to currIndex
-                # and 'build' shifting coefficient
-                for j in range(shiftIndex,currIndex,shiftDir):
-                    j1 = j
-                    j2 = j+shiftDir
-                    sl1 = slice(df_trim.iloc[j1]['Lo'],-1-df_trim.iloc[j1]['Hi'],None)
-                    sl2 = slice(df_trim.iloc[j2]['Lo'],-1-df_trim.iloc[j2]['Hi'],None)
-                    q1 = df_xy.iloc[j1]['q'].values[sl1]
-                    I1 = df_xy.iloc[j1]['I'].values[sl1]
-                    q2 = df_xy.iloc[j2]['q'].values[sl2]
-                    I2 = df_xy.iloc[j2]['I'].values[sl2]
-                    shiftFac = calcShift(q1,I1,q2,I2)[0]
-                    shift *= shiftFac
-                    # print('Calculating For:',currIndex,'Between',j1,j2,'CurrShift',shiftFac,'CumShift',shift)
-            shiftTable.append(shift)
+        try:
+            shiftIndex  = df_xy.index.get_loc(shiftConfig) # get index of curve to shift to
+        except KeyError:
+            shiftTable = np.ones(n_configs)
+        else:
+            shiftTable = []
+            for currIndex in range(n_configs):
+                # determine which direction the shiftIndex is in (higher or lower q)
+                shiftDir = np.sign(currIndex-shiftIndex) 
+                shift = 1.0 #default shift is no-shift
+                if not (shiftDir==0):
+                    # need to walk from "shiftIndex" curve back to currIndex
+                    # and 'build' shifting coefficient
+                    for j in range(shiftIndex,currIndex,shiftDir):
+                        j1 = j
+                        j2 = j+shiftDir
+                        sl1 = slice(df_trim.iloc[j1]['Lo'],-1-df_trim.iloc[j1]['Hi'],None)
+                        sl2 = slice(df_trim.iloc[j2]['Lo'],-1-df_trim.iloc[j2]['Hi'],None)
+                        q1 = df_xy.iloc[j1]['q'].values[sl1]
+                        I1 = df_xy.iloc[j1]['I'].values[sl1]
+                        q2 = df_xy.iloc[j2]['q'].values[sl2]
+                        I2 = df_xy.iloc[j2]['I'].values[sl2]
+                        shiftFac = calcShift(q1,I1,q2,I2)[0]
+                        shift *= shiftFac
+                        # print('Calculating For:',currIndex,'Between',j1,j2,'CurrShift',shiftFac,'CumShift',shift)
+                shiftTable.append(shift)
 
     df_shift = pd.Series(shiftTable,index=df_xy.index,name='shiftFactors')
     return df_shift
@@ -68,3 +72,14 @@ def calcShift(q1,I1,q2,I2):
     scale = I1p[mask]/I2[mask]
     
     return scale.mean(),scale.std()
+
+def for_all_methods(decorator):
+    ''' Decorate all methods of a class
+    From https://stackoverflow.com/a/6307868
+    '''
+    def decorate(cls):
+        for attr in cls.__dict__: # there's propably a better way to do this
+            if callable(getattr(cls, attr)):
+                setattr(cls, attr, decorator(getattr(cls, attr)))
+        return cls
+    return decorate
