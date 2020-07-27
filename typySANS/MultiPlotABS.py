@@ -51,7 +51,7 @@ class MultiPlotABS(object):
     def build_widget(self):
         
         # init interactive plot
-        self.plot_output = Output()
+        self.plot_output = Output(layout={'width':'600px'})
             
         self.text_output = Output()
         self.select = SelectMultiple(options=self.file_list,
