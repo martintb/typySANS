@@ -6,9 +6,9 @@ import ipywidgets
 import plotly.subplots
 import plotly.graph_objs as go
 
-from libAgBeh.util import init_image_mesh
-from libAgBeh.ImageWidget import ImageWidget
-from libAgBeh.MVC import DataView
+from typySANS.util import init_image_mesh
+from typySANS.ImageWidget import ImageWidget
+from typySANS.MVC import DataView
 
 
 class Fit1DWidget:

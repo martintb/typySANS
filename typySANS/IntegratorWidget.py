@@ -6,8 +6,8 @@ import ipywidgets
 import plotly.subplots
 import plotly.graph_objs as go
 
-from libAgBeh.util import init_image_mesh
-from libAgBeh.MVC import DataView
+from typySANS.util import init_image_mesh
+from typySANS.MVC import DataView
 
 import pyFAI,pyFAI.azimuthalIntegrator
 

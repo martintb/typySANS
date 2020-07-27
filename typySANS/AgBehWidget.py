@@ -6,11 +6,11 @@ import ipywidgets
 import plotly.subplots
 import plotly.graph_objs as go
 
-from libAgBeh.util import init_image_mesh,init_gaussian1D_lmfit,init_gaussian2D_lmfit
-from libAgBeh.ImageWidget import ImageWidget
-from libAgBeh.Fit1DWidget import Fit1DWidget
-from libAgBeh.Fit2DWidget import Fit2DWidget
-from libAgBeh.IntegratorWidget import IntegratorWidget
+from typySANS.util import init_image_mesh,init_gaussian1D_lmfit,init_gaussian2D_lmfit
+from typySANS.ImageWidget import ImageWidget
+from typySANS.Fit1DWidget import Fit1DWidget
+from typySANS.Fit2DWidget import Fit2DWidget
+from typySANS.IntegratorWidget import IntegratorWidget
 
 
 class AgBehWidget:
