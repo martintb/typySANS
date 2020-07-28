@@ -8,13 +8,13 @@ import plotly.graph_objs as go
 
 from typySANS.util import init_image_mesh
 from typySANS.ImageWidget import ImageWidget
-from typySANS.MVC import DataView
+from typySANS.MVC import Fit_DataView
 
 
 class Fit2DWidget:
     '''MVC Controller for 2D Data Fitters'''
     def __init__(self,img,fit_model,fit_params):
-        self.data_model = Fit2D_DataModel(img,fit_model,fit_params)
+        self.data_model = Fit2DWidget_DataModel(img,fit_model,fit_params)
         
         subplot_kw = dict(
             rows=2,
@@ -24,7 +24,7 @@ class Fit2DWidget:
             horizontal_spacing=0,
             vertical_spacing=0
         )
-        self.data_view = Fit2D_DataView(subplot_kw)
+        self.data_view = Fit2DWidget_DataView(subplot_kw)
     
     def get_fit_param(self,name):
         return self.data_model.fit_result.params[name]
@@ -63,7 +63,7 @@ class Fit2DWidget:
         return self.data_view.run()
     
     
-class Fit2D_DataModel:
+class Fit2DWidget_DataModel:
     '''MVC DataModel for 2D Data Fitters'''
     def __init__(self,data,model,params):
         self.model  = model
@@ -99,7 +99,7 @@ class Fit2D_DataModel:
         y = getattr(self.slices[name][name2],index).values
         return x,y
             
-class Fit2D_DataView(DataView):
+class Fit2DWidget_DataView(Fit_DataView):
     def change_output(self,value):
         self.output.clear_output()
         with self.output:

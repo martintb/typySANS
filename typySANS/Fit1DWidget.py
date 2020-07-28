@@ -8,16 +8,16 @@ import plotly.graph_objs as go
 
 from typySANS.util import init_image_mesh
 from typySANS.ImageWidget import ImageWidget
-from typySANS.MVC import DataView
+from typySANS.MVC import Fit_DataView
 
 
 class Fit1DWidget:
     '''MVC Controller for 1D Data Fitters'''
     def __init__(self,x,y,fit_model,fit_params):
-        self.data_model = Fit1D_DataModel(x,y,fit_model,fit_params)
+        self.data_model = Fit1DWidget_DataModel(x,y,fit_model,fit_params)
         
         subplot_kw = dict( rows=1, cols=1,)
-        self.data_view = Fit1D_DataView(subplot_kw)
+        self.data_view = Fit1DWidget_DataView(subplot_kw)
         self.data_view.widget.update_layout(dragmode='select')
         
     def get_fit_param(self,name):
@@ -48,7 +48,7 @@ class Fit1DWidget:
         self.data_view.change_output(self.data_model.fit_result.fit_report())
     
     
-class Fit1D_DataModel:
+class Fit1DWidget_DataModel:
     '''MVC DataModel for 1D Data Fitters'''
     def __init__(self,x,y,model,params):
         self.model  = model
@@ -87,7 +87,7 @@ class Fit1D_DataModel:
         self.data_fit = xr.DataArray(y_fit,dims=['x'],coords={'x':x_fit})
         
             
-class Fit1D_DataView(DataView):
+class Fit1DWidget_DataView(Fit_DataView):
     def update_trace(self,trace_number,x,y):
         self.widget.data[trace_number].x = x
         self.widget.data[trace_number].y = y

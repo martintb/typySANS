@@ -7,7 +7,7 @@ import plotly.subplots
 import plotly.graph_objs as go
 
 from typySANS.util import init_image_mesh
-from typySANS.MVC import DataView
+from typySANS.MVC import Fit_DataView
 
 import pyFAI,pyFAI.azimuthalIntegrator
 
@@ -17,7 +17,7 @@ import warnings
 class IntegratorWidget:
     '''MVC Controller for 2D-1D Integrators'''
     def __init__(self,data,**integrator_kwargs):
-        self.data_model = Integrator_DataModel(data)
+        self.data_model = IntegratorWidget_DataModel(data)
         
         subplot_kw = dict(
             rows=1,
@@ -25,7 +25,7 @@ class IntegratorWidget:
             shared_xaxes=False,
             shared_yaxes=False,
         )
-        self.data_view = Integrator_DataView(height=600,width=100,subplot_kw=subplot_kw)
+        self.data_view = IntegratorWidget_DataView(height=600,width=100,subplot_kw=subplot_kw)
         self.data_model.update_integrator(**integrator_kwargs)
         self.data_model.integrate()
         
@@ -54,7 +54,7 @@ class IntegratorWidget:
         return self.data_view.run()
     
     
-class Integrator_DataModel:
+class IntegratorWidget_DataModel:
     '''MVC DataModel for 2D->1D Integrator'''
     def __init__(self,data):
         Nx,Ny = np.shape(data)
@@ -126,5 +126,5 @@ class Integrator_DataModel:
         )
         
             
-class Integrator_DataView(DataView):
+class IntegratorWidget_DataView(Fit_DataView):
     pass

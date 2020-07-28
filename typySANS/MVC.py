@@ -7,7 +7,7 @@ import plotly.subplots
 import plotly.graph_objs as go
 
 
-class DataView:
+class Fit_DataView:
     '''MVC Data Viewer for 2D Data Fitters'''
     def __init__(self,subplot_kw,height=600,width=600):
         

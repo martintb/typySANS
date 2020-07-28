@@ -16,11 +16,13 @@ from typySANS.IntegratorWidget import IntegratorWidget
 class AgBehWidget:
     def __init__(self,df):
         self.df = df
+        self.check()
+
         self.model1D,self.param1D = init_gaussian1D_lmfit()
         self.model2D,self.param2D = init_gaussian2D_lmfit()
         self.wavelengths = sorted(self.df.wavelength.unique())
         
-        self.data_view = AgBeh_DataView(self.wavelengths)
+        self.data_view = AgBehWidget_DataView(self.wavelengths)
     
     def build_widgets(self):
         self.Fit1DWidgets = {}
@@ -59,7 +61,7 @@ class AgBehWidget:
     def check(self):
         for i,(index,sdf) in enumerate(self.df.groupby('wavelength')):
             if not (len(sdf)==2):
-                strval='There should be one transmission and one scattering file for each wavelength.'
+                strval=f'There should be one transmission and one scattering file for each wavelength. Found:\n{sdf}'
                 raise ValueError(strval)
                 
     def run(self):
@@ -82,7 +84,7 @@ class AgBehWidget:
         ])
         return VBox
         
-class AgBeh_DataView:
+class AgBehWidget_DataView:
     def __init__(self,wavelengths):
         self.wavelengths = wavelengths
         self.tabs = None
