@@ -6,7 +6,7 @@ import ipywidgets
 import plotly.subplots
 import plotly.graph_objs as go
 
-from typySANS.util import init_image_mesh
+from typySANS.FitUtil import init_image_mesh
 from typySANS.MVC import Fit_DataView
 
 import pyFAI,pyFAI.azimuthalIntegrator

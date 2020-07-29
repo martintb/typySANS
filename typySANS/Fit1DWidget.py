@@ -6,7 +6,6 @@ import ipywidgets
 import plotly.subplots
 import plotly.graph_objs as go
 
-from typySANS.util import init_image_mesh
 from typySANS.ImageWidget import ImageWidget
 from typySANS.MVC import Fit_DataView
 

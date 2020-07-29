@@ -6,7 +6,7 @@ import ipywidgets
 import plotly.subplots
 import plotly.graph_objs as go
 
-from typySANS.util import init_image_mesh,init_gaussian1D_lmfit,init_gaussian2D_lmfit
+from typySANS.FitUtil import init_image_mesh,init_gaussian1D_lmfit,init_gaussian2D_lmfit
 from typySANS.ImageWidget import ImageWidget
 from typySANS.Fit1DWidget import Fit1DWidget
 from typySANS.Fit2DWidget import Fit2DWidget
