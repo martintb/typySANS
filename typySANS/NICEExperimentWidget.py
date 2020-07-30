@@ -1,22 +1,27 @@
-import ipywidgets
-import ipyaggrid
 import pathlib
-import ftplib
 import requests
 import datetime
-import pandas as pd
 import copy
-from concurrent.futures import ProcessPoolExecutor
 
 
-class ExperimentWidget:
+import pandas as pd
+
+import ipywidgets
+import ipyaggrid
+
+from typySANS import FTP
+from typySANS.ProgressWidget import ProgressWidget
+
+
+class NICEExperimentWidget:
     def __init__(self):
-        self.data_model = ExperimentWidget_DataModel()
-        self.data_view = ExperimentWidget_DataView()
+        self.data_model = NICEExperimentWidget_DataModel()
+        self.data_view = NICEExperimentWidget_DataView()
         
     def run(self):
         self.data_model.build_experiments()
         widget = self.data_view.run(self.data_model.experiments)
+        
         self.data_view.download_button.on_click(self.download_all_files)
         return widget
     
@@ -29,32 +34,25 @@ class ExperimentWidget:
             
     def download_all_files(self,*args):
         
-        src_path = self.data_view.grid.grid_data_out['rows'].squeeze().paths
-        src_path_list = self.get_file_list(src_path[0])
+        src_paths = self.data_view.grid.grid_data_out['rows'].squeeze().paths
         dest_path = pathlib.Path(self.data_view.download_loc.value)
         
-        paths = []
-        for src_path in src_path_list:
-            if not ('nxs' in src_path):
-                continue
-            src = pathlib.Path(src_path)
-            paths.append((src,dest_path))
-            
-        self.data_view.update_progress(0,len(src_path_list))
-        with ProcessPoolExecutor(max_workers=5) as executor:
-            results = executor.map(download_file,paths)
-            for result in results:
-                self.data_view.increment_progress()
+        if len(src_paths)>0:
+            src_path = pathlib.Path(src_paths[0])
+        else:
+            print('No data paths')
+            return
+        
+        FTP.download_all_files(
+            src_path,
+            dest_path,
+            select_key='nxs',
+            progress=self.data_view.progress
+        )
+        
                 
-def download_file(paths):
-    src,dest = paths
-    with ftplib.FTP('ncnr.nist.gov') as ftp:
-        ftp.login()
-        with open(dest/src.parts[-1],'wb') as f:
-            ftp.retrbinary(f'RETR {src}',f.write)
         
-        
-class ExperimentWidget_DataModel:
+class NICEExperimentWidget_DataModel:
     def __init__(self):
         self.manifest=None
         self.path_lookup=None
@@ -98,14 +96,7 @@ class ExperimentWidget_DataModel:
         
         
     
-class ExperimentWidget_DataView:
-    def increment_progress(self):
-        self.update_progress(self.progress.value+1,self.progress.max)
-        
-    def update_progress(self,i,N):
-        self.progress.max = N
-        self.progress.value = i
-        self.progress_label.value = f'{i}/{N} Downloaded'
+class NICEExperimentWidget_DataView:
         
     def run(self,experiments):
         column_defs = [
@@ -134,12 +125,10 @@ class ExperimentWidget_DataView:
         )
         self.download_button    = ipywidgets.Button(description='DOWNLOAD')
         self.download_loc       = ipywidgets.Text(value='./test/')
-        self.progress           = ipywidgets.IntProgress(value=0,min=0,max=10)
-        self.progress_label              = ipywidgets.Label(value='')
+        self.progress           = ProgressWidget()
         
         down_hbox = ipywidgets.HBox([self.download_button,self.download_loc])
-        prog_hbox = ipywidgets.HBox([self.progress,self.progress_label])
-        vbox = ipywidgets.VBox([self.grid,down_hbox,prog_hbox])
+        vbox = ipywidgets.VBox([self.grid,down_hbox,self.progress.run()])
         return vbox
         
     
