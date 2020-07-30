@@ -94,7 +94,7 @@ class NICEExperimentWidget_DataView:
             {'field':'title'},
             {'field':'participants'},
             {'field':'localContact'},
-            {'field':'creationDate'},
+            {'field':'creationDate','sort':'desc'},
             {'field':'paths'},
         ]
         
