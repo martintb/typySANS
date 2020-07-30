@@ -9,7 +9,7 @@ import pandas as pd
 import ipywidgets
 import ipyaggrid
 
-from typySANS import FTP
+from typySANS.FTP import FTP
 from typySANS.ProgressWidget import ProgressWidget
 
 
@@ -17,21 +17,8 @@ class NICEExperimentWidget:
     def __init__(self):
         self.data_model = NICEExperimentWidget_DataModel()
         self.data_view = NICEExperimentWidget_DataView()
-        
-    def run(self):
-        self.data_model.build_experiments()
-        widget = self.data_view.run(self.data_model.experiments)
-        
-        self.data_view.download_button.on_click(self.download_all_files)
-        return widget
+        self.ftp = FTP()
     
-                
-    def get_file_list(self,src_path):
-        with ftplib.FTP('ncnr.nist.gov') as ftp:
-            ftp.login()
-            src_path_list = ftp.nlst(src_path)
-        return src_path_list
-            
     def download_all_files(self,*args):
         
         src_paths = self.data_view.grid.grid_data_out['rows'].squeeze().paths
@@ -43,12 +30,20 @@ class NICEExperimentWidget:
             print('No data paths')
             return
         
-        FTP.download_all_files(
+        self.ftp.download_all_files(
             src_path,
             dest_path,
             select_key='nxs',
             progress=self.data_view.progress
         )
+        
+    def run(self):
+        self.data_model.build_experiments()
+        widget = self.data_view.run(self.data_model.experiments)
+        
+        self.data_view.download_button.on_click(self.download_all_files)
+        self.data_view.stop_button.on_click(self.ftp.stop)
+        return widget
         
                 
         
@@ -91,11 +86,6 @@ class NICEExperimentWidget_DataModel:
         self.experiments = df
         
     
-    
-        
-        
-        
-    
 class NICEExperimentWidget_DataView:
         
     def run(self,experiments):
@@ -121,13 +111,14 @@ class NICEExperimentWidget_DataView:
             index=True,
             quick_filter=True, 
             export_mode='auto',
-            theme='ag-theme-excel', 
+            theme='ag-theme-balham', 
         )
-        self.download_button    = ipywidgets.Button(description='DOWNLOAD')
+        self.download_button    = ipywidgets.Button(description='DOWNLOAD ALL')
         self.download_loc       = ipywidgets.Text(value='./test/')
+        self.stop_button        = ipywidgets.Button(description='STOP')
         self.progress           = ProgressWidget()
         
-        down_hbox = ipywidgets.HBox([self.download_button,self.download_loc])
+        down_hbox = ipywidgets.HBox([self.download_button,self.stop_button,self.download_loc])
         vbox = ipywidgets.VBox([self.grid,down_hbox,self.progress.run()])
         return vbox
         
