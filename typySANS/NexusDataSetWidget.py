@@ -1,5 +1,6 @@
 import pathlib
 import pandas as pd
+import numpy as np 
 
 import ipywidgets
 import ipyaggrid
@@ -9,17 +10,36 @@ import shutil
 import warnings
 
 from typySANS.ProgressWidget import ProgressWidget
+from typySANS.ImageWidget import ImageWidget
 
-class NexusDataWidget:
+class NexusDataSetWidget:
     def __init__(self):
-        self.data_model = NexusDataWidget_DataModel()
-        self.data_view = NexusDataWidget_DataView()
-        self.integrator_widget
+        self.data_model = NexusDataSetWidget_DataModel()
+        self.data_view = NexusDataSetWidget_DataView()
+        self.selected_img = None
+        self.selected_row = None
     
     def load_files(self,*args):
         data_path = self.data_view.data_path.value
         filedata = self.data_model.get_filedata(data_path)
         self.data_view.update_grid(filedata)
+        
+    def plot_data(self,*args):
+        try:
+            selected_rows =  self.data_view.grid.grid_data_out['rows']
+        except KeyError:
+            #no rows selected
+            return
+        
+        filename = selected_rows.iloc[0]['filename']#.squeeze()
+        self.selected_row = self.data_view.grid.grid_data_out['rows'].iloc[0].name[0]
+            
+            
+        data_path = pathlib.Path(self.data_view.data_path.value)
+        filepath = data_path/filename
+        with h5py.File(filepath,'r') as h5:
+            self.selected_img = h5['entry/data/y'][()].T
+        self.data_view.image.update_widget_image(self.selected_img)
         
     def move(self,*args):
         try:
@@ -37,9 +57,8 @@ class NexusDataWidget:
         for fname in selected_rows['filename']:
             old_path = data_path/fname
             new_path = move_path/fname
-            #print(old_path,'-->',new_path)
             
-            old_path.replace(new_path)
+            old_path.replace(new_path)#actually does the move
         
         self.load_files()
         
@@ -48,12 +67,12 @@ class NexusDataWidget:
         widget = self.data_view.run()
         self.data_view.load_button.on_click(self.load_files)
         self.data_view.move_button.on_click(self.move)
-        self.load_files()
+        self.data_view.plot_button.on_click(self.plot_data)
         return widget
         
                 
         
-class NexusDataWidget_DataModel:
+class NexusDataSetWidget_DataModel:
     def __init__(self):
         self.path = None
     def get_filedata(self,path):
@@ -73,7 +92,7 @@ class NexusDataWidget_DataModel:
         
         
     
-class NexusDataWidget_DataView:
+class NexusDataSetWidget_DataView:
     def update_grid(self,data):
         self.grid.update_grid_data(data)
         
@@ -102,14 +121,27 @@ class NexusDataWidget_DataView:
             theme='ag-theme-balham', 
         )
         self.load_button = ipywidgets.Button(description='LOAD FILES')
-        self.data_path     = ipywidgets.Text(value='./test/')
+        self.data_path     = ipywidgets.Text(value='./')
         self.move_button   = ipywidgets.Button(description='MOVE SELECTED')
         self.move_path     = ipywidgets.Text(value='./junk/')
-        #self.progress      = ProgressWidget()
+        
+        self.plot_button   = ipywidgets.Button(description='PLOT SELECTED')
+        self.plot_next_button   = ipywidgets.Button(description='PLOT NEXT')
+        self.plot_prev_button   = ipywidgets.Button(description='PLOT PREV')
+        
+        self.image = ImageWidget(2.0*np.ones((128,128)))
         
         down_hbox = ipywidgets.HBox([self.load_button,self.data_path])
         move_hbox = ipywidgets.HBox([self.move_button,self.move_path])
-        vbox = ipywidgets.VBox([self.grid,down_hbox,move_hbox])
+        plot_hbox = ipywidgets.HBox([self.plot_button,self.plot_prev_button,self.plot_next_button])
+        vbox = ipywidgets.VBox([
+            self.grid,
+            down_hbox,
+            move_hbox,
+            plot_hbox,
+            self.image.run(),
+        ])
+        
         return vbox
         
     

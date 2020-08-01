@@ -57,6 +57,9 @@ class IntegratorWidget:
 class IntegratorWidget_DataModel:
     '''MVC DataModel for 2D->1D Integrator'''
     def __init__(self,data):
+        self.set_image(data) 
+    
+    def set_image(self,data)
         Nx,Ny = np.shape(data)
         x,y,X,Y,self.XY = init_image_mesh(Nx,Ny)
         self.data2D    = xr.DataArray(data,dims=['y','x'],coords={'x':x,'y':y})

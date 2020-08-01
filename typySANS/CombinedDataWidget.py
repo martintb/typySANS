@@ -10,14 +10,14 @@ from concurrent.futures import ProcessPoolExecutor
 
 from typySANS.NICEExperimentWidget import NICEExperimentWidget
 from typySANS.NICEFileWidget import NICEFileWidget
-from typySANS.NexusDataWidget import NexusDataWidget
+from typySANS.NexusDataSetWidget import NexusDataSetWidget
 
 
 class CombinedDataWidget:
     def __init__(self):
         self.experiment_widget = NICEExperimentWidget()
         self.file_widget = NICEFileWidget()
-        self.nexus_widget = NexusDataWidget()
+        self.nexus_widget = NexusDataSetWidget()
         self.data_view = CombinedDataWidget_DataView()
         
     def update_remote_filelist(self,*args):
