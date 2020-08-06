@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np 
 
 import ipywidgets
+from ipywidgets import HBox,VBox
+
 import ipyaggrid
 import h5py
 
@@ -11,13 +13,15 @@ import warnings
 
 from typySANS.ProgressWidget import ProgressWidget
 from typySANS.ImageWidget import ImageWidget
+from typySANS.IntegratorWidget import IntegratorWidget_DataModel
+
+import plotly.graph_objects as go
 
 class NexusDataSetWidget:
     def __init__(self):
         self.data_model = NexusDataSetWidget_DataModel()
         self.data_view = NexusDataSetWidget_DataView()
         self.selected_img = None
-        self.selected_row = None
     
     def load_files(self,*args):
         load_path = self.data_view.load_path.value
@@ -44,20 +48,39 @@ class NexusDataSetWidget:
         self.plot_data()
             
     def plot_data(self,*args):
+        #initialize 
+        if self.data_view.image is None:
+            self.data_view.build_raw_plots()
+            children = list(self.data_view.accordion.children)
+            children[0] = self.data_view.raw_plots
+            self.data_view.accordion.children = children
+            
         try:
-            selected_rows =  self.data_view.grid.grid_data_out['rows'].iloc[0]
+            selected_row =  self.data_view.grid.grid_data_out['rows'].iloc[0]
         except KeyError:
             return
         
-        filename = selected_rows['filename']#.squeeze()
-        self.selected_row = self.data_view.grid.grid_data_out['rows'].iloc[0].name[0]
-            
+        filename = selected_row['filename']#.squeeze()
             
         load_path = pathlib.Path(self.data_view.load_path.value)
         filepath = load_path/filename
         with h5py.File(filepath,'r') as h5:
+            label = h5['entry/sample/description'][()][0].decode('utf8')
             self.selected_img = h5['entry/data/y'][()].T
+        self.data_view.image.update_widget_label(filename + '\n' + label)
         self.data_view.image.update_widget_image(self.selected_img)
+        
+        self.data_model.integrator.set_image(self.selected_img)
+        self.data_model.integrator.update_integrator(
+            SDD = float(selected_row['detectorDistance']),
+            wavelength = float(selected_row['wavelength']),
+            x0 = float(selected_row['beamCenterX']),
+            y0 = float(selected_row['beamCenterY']),
+        )
+        self.data_model.integrator.integrate()
+        self.data_view.integrated_trace.data[0].x = self.data_model.integrator.x
+        self.data_view.integrated_trace.data[0].y = self.data_model.integrator.y
+        
         
     def move(self,*args):
         try:
@@ -95,6 +118,7 @@ class NexusDataSetWidget:
 class NexusDataSetWidget_DataModel:
     def __init__(self):
         self.path = None
+        self.integrator = IntegratorWidget_DataModel()
     def get_filedata(self,path):
         self.path = pathlib.Path(path)
         
@@ -107,22 +131,32 @@ class NexusDataSetWidget_DataModel:
                     'countTime':'{:.2f}'.format(float(h5['entry/collection_time'][()][0])),
                     'detectorDistance':'{:5.2f}'.format(h5['entry/DAS_logs/detectorPosition/softPosition'][()][0]),
                     'wavelength':float(h5['entry/DAS_logs/wavelength/wavelength'][()][0]),
+                    'beamCenterX':float(h5['entry/instrument/detector/beam_center_x'][()][0]),
+                    'beamCenterY':float(h5['entry/instrument/detector/beam_center_y'][()][0]),
                 })
+        filedata = pd.DataFrame(filedata)
         return filedata
         
         
     
 class NexusDataSetWidget_DataView:
+    def __init__(self):
+        self.image = None
+        self.integrated_trace = None
+        self.dummy = ipywidgets.Label() #sentinel for not loaded
+        
     def update_grid(self,data):
         self.grid.update_grid_data(data)
         
-    def run(self):
+    def build_grid(self):
         column_defs = [
             {'field':'filename'},
             {'field':'label'},
             {'field':'countTime'},
             {'field':'detectorDistance'},
             {'field':'wavelength'},
+            {'field':'beamCenterX'},
+            {'field':'beamCenterY'},
         ]
         
         grid_options = {
@@ -139,8 +173,12 @@ class NexusDataSetWidget_DataView:
             quick_filter=True, 
             export_mode='auto',
             show_toggle_edit=True,
+            sync_grid=True,
+            sync_on_edit=True,
             theme='ag-theme-balham', 
         )
+        
+    def build_grid_buttons(self):
         self.load_button = ipywidgets.Button(description='LOAD FILES')
         self.load_path     = ipywidgets.Text(value='./')
         self.move_button   = ipywidgets.Button(description='MOVE SELECTED')
@@ -150,17 +188,39 @@ class NexusDataSetWidget_DataView:
         self.plot_next_button   = ipywidgets.Button(description='PLOT NEXT')
         self.plot_prev_button   = ipywidgets.Button(description='PLOT PREV')
         
-        self.image = ImageWidget(2.0*np.ones((128,128)))
+    def build_raw_plots(self):
+        dummy_image = np.ones((128,128))
+        self.image = ImageWidget(dummy_image)
         
-        down_hbox = ipywidgets.HBox([self.load_button,self.load_path])
+        self.integrated_trace = go.FigureWidget(
+            go.Scatter(
+                x=np.geomspace(1e-3,1,500), 
+                y=np.ones(500), 
+                mode='markers', 
+                marker={'color':'red'},
+                name='RAW SANS'
+            ),
+            layout=dict(width=400)
+        )
+        self.raw_plots = ipywidgets.HBox([self.image.run(),self.integrated_trace])
+        
+    def run(self):
+        self.build_grid()
+        self.build_grid_buttons()
+        
+        load_hbox = ipywidgets.HBox([self.load_button,self.load_path])
         move_hbox = ipywidgets.HBox([self.move_button,self.move_path])
         plot_hbox = ipywidgets.HBox([self.plot_button,self.plot_prev_button,self.plot_next_button])
+        button_vbox = ipywidgets.VBox([load_hbox,move_hbox,plot_hbox])
+        
+        self.accordion = ipywidgets.Accordion([self.dummy])
+        self.accordion.set_title(0,'Raw Data')
+        self.accordion.selected_index = None
+        
         vbox = ipywidgets.VBox([
             self.grid,
-            down_hbox,
-            move_hbox,
-            plot_hbox,
-            self.image.run(),
+            button_vbox,
+            self.accordion,
         ])
         
         return vbox

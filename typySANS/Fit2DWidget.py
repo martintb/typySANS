@@ -65,7 +65,7 @@ class Fit2DWidget:
     
 class Fit2DWidget_DataModel:
     '''MVC DataModel for 2D Data Fitters'''
-    def __init__(self,data,model,params):
+    def __init__(self,data,model,params,fit_now=True):
         self.model  = model
         self.params = params
         self.slices = {}
@@ -74,7 +74,8 @@ class Fit2DWidget_DataModel:
         x,y,X,Y,self.XY = init_image_mesh(Nx,Ny)
         self.data    = xr.DataArray(data,dims=['y','x'],coords={'x':x,'y':y})
         
-        self.fit()
+        if fit_now:
+            self.fit()
         
     def fit(self):
         fit = self.model.fit(self.data.values.ravel(),XY=self.XY,params=self.params)

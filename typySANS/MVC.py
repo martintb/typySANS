@@ -29,21 +29,7 @@ class Fit_DataView:
         self.widget.update_layout( legend=legend_kw ) 
         
     def add_image(self,img,row=1,col=1,lognorm=True,cmap='viridis',norm_min=1):
-        
-        norm_max = float(img.max())
-        if lognorm:
-            norm = mpl.colors.LogNorm(norm_min,norm_max)
-        else:
-            norm = mpl.colors.Normalize(norm_min,norm_max)
-            
-        z = mpl.cm.ScalarMappable(norm=norm,cmap=cmap).to_rgba(img)
-        z*=256
-        self.widget.add_image(
-            z=z,
-            row=row,
-            col=col
-        )
-        self.widget.update_layout(yaxis=dict(autorange=True))
+        self.widget.add_heatmap(z=img,row=row,col=col)
         
     def add_trace(self,x,y,name,row=1,col=1,mode='marker',color='blue'):
         

@@ -29,15 +29,24 @@ class IntegratorWidget:
         self.data_model.update_integrator(**integrator_kwargs)
         self.data_model.integrate()
         
+    def update_image(self,image):
+        self.data_model.set_image(image)
+        self.data_view.widget.data[0].z=image
+        
     def update_integrator(self,**kwargs):
         self.data_model.update_integrator(**kwargs)
+        
+    def integrate(self):
+        self.data_model.integrate()
+        data1D = self.data_model.data1D
+        self.data_view.widget.data[1].update(x=data1D.x.values,y=data1D.values)
     
     def get_integrated_data(self):
         return  self.data_model.x, self.data_model.y
         
     def run(self):
-        data2D = self.data_model.data2D
         data1D = self.data_model.data1D
+        data2D = self.data_model.data2D
         
         self.data_view.add_image(data2D.values,row=1,col=1)
         self.data_view.change_output(self.data_model.integrator)
@@ -56,14 +65,15 @@ class IntegratorWidget:
     
 class IntegratorWidget_DataModel:
     '''MVC DataModel for 2D->1D Integrator'''
-    def __init__(self,data):
-        self.set_image(data) 
+    def __init__(self,data=None):
+        self.init_integrator() 
+        if data is not None:
+            self.set_image(data) 
     
-    def set_image(self,data)
+    def set_image(self,data):
         Nx,Ny = np.shape(data)
         x,y,X,Y,self.XY = init_image_mesh(Nx,Ny)
         self.data2D    = xr.DataArray(data,dims=['y','x'],coords={'x':x,'y':y})
-        self.init_integrator()
         
     @property
     def x(self):
@@ -100,15 +110,17 @@ class IntegratorWidget_DataModel:
         '''
         dy = self.integrator.get_pixel1()
         dx = self.integrator.get_pixel2()
+        print('Integrator Args:')
         for k,v in kwargs.items():
+            print(k,v)
             if k=='y0':
-                self.integrator.set_poni1(dy*v)
+                self.integrator.set_poni1(dy*float(v))
             elif k=='x0':
-                self.integrator.set_poni2(dx*v)
+                self.integrator.set_poni2(dx*float(v))
             elif k=='wavelength':
-                self.integrator.set_wavelength(v*1e-10)
+                self.integrator.set_wavelength(float(v)*1e-10)
             elif k=='SDD':
-                self.integrator.set_dist(v/100.0)
+                self.integrator.set_dist(float(v)/100.0)
             else:
                 raise ValueError(f'Integrator parameter not understood: {k}={v}')
         
@@ -120,7 +132,7 @@ class IntegratorWidget_DataModel:
                 unit='q_A^-1',
                 method='csr_ocl_1,3',
                 correctSolidAngle=False,
-                npt=500,
+                npt=200,
             )
         self.data1D = xr.DataArray(
             pf_result.intensity,
