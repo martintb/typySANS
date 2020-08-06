@@ -13,7 +13,7 @@ class Fit_DataView:
         
         self.output = ipywidgets.Output()
         self.output.layout = ipywidgets.Layout(
-            height='300px',
+            height='150px',
             overflow_y='auto',
             border = '1px solid black',
             padding= '25px',

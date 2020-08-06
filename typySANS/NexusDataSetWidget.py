@@ -13,7 +13,7 @@ import warnings
 
 from typySANS.ProgressWidget import ProgressWidget
 from typySANS.ImageWidget import ImageWidget
-from typySANS.IntegratorWidget import IntegratorWidget_DataModel
+from typySANS.IntegratorWidget import IntegratorWidget
 
 import plotly.graph_objects as go
 
@@ -21,6 +21,8 @@ class NexusDataSetWidget:
     def __init__(self):
         self.data_model = NexusDataSetWidget_DataModel()
         self.data_view = NexusDataSetWidget_DataView()
+        
+        self.integrator = IntegratorWidget(np.ones((128,128)))
         self.selected_img = None
     
     def load_files(self,*args):
@@ -49,10 +51,9 @@ class NexusDataSetWidget:
             
     def plot_data(self,*args):
         #initialize 
-        if self.data_view.image is None:
-            self.data_view.build_raw_plots()
+        if self.data_view.accordion.children[0] is self.data_view.dummy:
             children = list(self.data_view.accordion.children)
-            children[0] = self.data_view.raw_plots
+            children[0] = self.integrator.run()
             self.data_view.accordion.children = children
             
         try:
@@ -65,22 +66,25 @@ class NexusDataSetWidget:
         load_path = pathlib.Path(self.data_view.load_path.value)
         filepath = load_path/filename
         with h5py.File(filepath,'r') as h5:
-            label = h5['entry/sample/description'][()][0].decode('utf8')
+            sample_label = h5['entry/sample/description'][()][0].decode('utf8')
             self.selected_img = h5['entry/data/y'][()].T
-        self.data_view.image.update_widget_label(filename + '\n' + label)
-        self.data_view.image.update_widget_image(self.selected_img)
+            
+        label = f'Filename: {filename}' 
+        label+= '\n' 
+        label+= f'Sample Label: {label}'  + '\n' + str(self.integrator.data_model.integrator)
+        label+= '\n' 
+        label+= '\n' 
+        label+= str(self.integrator.data_model.integrator)
         
-        self.data_model.integrator.set_image(self.selected_img)
-        self.data_model.integrator.update_integrator(
+        self.integrator.data_view.change_output(label)
+        self.integrator.update_image(self.selected_img)
+        self.integrator.update_integrator(
             SDD = float(selected_row['detectorDistance']),
             wavelength = float(selected_row['wavelength']),
             x0 = float(selected_row['beamCenterX']),
             y0 = float(selected_row['beamCenterY']),
         )
-        self.data_model.integrator.integrate()
-        self.data_view.integrated_trace.data[0].x = self.data_model.integrator.x
-        self.data_view.integrated_trace.data[0].y = self.data_model.integrator.y
-        
+        self.integrator.integrate()
         
     def move(self,*args):
         try:
@@ -118,7 +122,6 @@ class NexusDataSetWidget:
 class NexusDataSetWidget_DataModel:
     def __init__(self):
         self.path = None
-        self.integrator = IntegratorWidget_DataModel()
     def get_filedata(self,path):
         self.path = pathlib.Path(path)
         
@@ -187,22 +190,6 @@ class NexusDataSetWidget_DataView:
         self.plot_button   = ipywidgets.Button(description='PLOT SELECTED')
         self.plot_next_button   = ipywidgets.Button(description='PLOT NEXT')
         self.plot_prev_button   = ipywidgets.Button(description='PLOT PREV')
-        
-    def build_raw_plots(self):
-        dummy_image = np.ones((128,128))
-        self.image = ImageWidget(dummy_image)
-        
-        self.integrated_trace = go.FigureWidget(
-            go.Scatter(
-                x=np.geomspace(1e-3,1,500), 
-                y=np.ones(500), 
-                mode='markers', 
-                marker={'color':'red'},
-                name='RAW SANS'
-            ),
-            layout=dict(width=400)
-        )
-        self.raw_plots = ipywidgets.HBox([self.image.run(),self.integrated_trace])
         
     def run(self):
         self.build_grid()

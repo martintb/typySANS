@@ -29,9 +29,38 @@ class IntegratorWidget:
         self.data_model.update_integrator(**integrator_kwargs)
         self.data_model.integrate()
         
+    def update_colorbar(self,update):
+        zmin,zmax = update['owner'].value
+        self.data_view.widget.data[0].update(dict(zmin=zmin,zmax=zmax))
+        # self.data_view.slider.max = zmax#order of max/min setting is important
+        # self.data_view.slider.min = zmin
+        # self.data_view.slider.value = [zmin,zmax]
+        
+    def update_logscale(self,update):
+        logscale = update['owner'].value
+        if logscale:
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                img = np.log10(self.data_model.data2D.values)
+            
+        else:
+            img = self.data_model.data2D.values
+            
+        minval = img[~np.isinf(img)].min()
+        maxval = img.max()
+        self.data_view.widget.data[0].update(dict(z=img,zmin=minval,zmax=maxval))
+        self.data_view.slider.max = maxval#order of max/min setting is important
+        self.data_view.slider.min = minval
+        self.data_view.slider.value = [minval,maxval]
+        
     def update_image(self,image):
         self.data_model.set_image(image)
         self.data_view.widget.data[0].z=image
+        zmin,zmax = image.min(),image.max()
+        self.data_view.widget.data[0].update(dict(zmin=zmin,zmax=zmax))
+        self.data_view.slider.max = zmax#order of max/min setting is important
+        self.data_view.slider.min = zmin
+        self.data_view.slider.value = [zmin,zmax]
         
     def update_integrator(self,**kwargs):
         self.data_model.update_integrator(**kwargs)
@@ -54,13 +83,17 @@ class IntegratorWidget:
         self.data_view.add_trace(
             data1D.x.values,
             data1D.values,
-            'SANS X',
+            'SANS',
             col=2,
             mode='markers',
             color='blue')
         self.data_view.widget.update_layout(height=400,width=800)
+        widget = self.data_view.run(data2D.values)
         
-        return self.data_view.run()
+        self.data_view.slider.observe(self.update_colorbar,names='value')
+        self.data_view.checkbox.observe(self.update_logscale,names='value')
+        
+        return widget
     
     
 class IntegratorWidget_DataModel:
@@ -110,9 +143,9 @@ class IntegratorWidget_DataModel:
         '''
         dy = self.integrator.get_pixel1()
         dx = self.integrator.get_pixel2()
-        print('Integrator Args:')
+        #print('Integrator Args:')
         for k,v in kwargs.items():
-            print(k,v)
+            #print(k,v)
             if k=='y0':
                 self.integrator.set_poni1(dy*float(v))
             elif k=='x0':
@@ -142,4 +175,26 @@ class IntegratorWidget_DataModel:
         
             
 class IntegratorWidget_DataView(Fit_DataView):
-    pass
+    def run(self,img):
+        
+        self.slider = ipywidgets.FloatRangeSlider(
+            description='Colorscale',
+            value=[img.min(),img.max()],
+            min=img.min(),
+            max=img.max(),
+            readout_format='.0f',
+        )
+        
+        self.checkbox = ipywidgets.Checkbox(
+            value=False,
+            description='log scale',
+        )
+        vbox = ipywidgets.VBox(
+            [
+                self.widget,
+                self.slider,
+                self.checkbox,
+                self.output
+            ]
+        )
+        return vbox
