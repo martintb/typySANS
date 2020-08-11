@@ -46,15 +46,16 @@ class NexusDataSetWidget:
         elif index<grid_data_out['grid'].index.min()[0]:
             index = grid_data_out['grid'].index.max()[0]
         
-        grid_data_out['rows'] = grid_data_out['grid'].iloc[[index]]
+        grid_data_out['rows'] = grid_data_out['grid'].loc[[index]]
         self.plot_data()
             
     def plot_data(self,*args):
         #initialize 
-        if self.data_view.accordion.children[0] is self.data_view.dummy:
-            children = list(self.data_view.accordion.children)
-            children[0] = self.integrator.run()
-            self.data_view.accordion.children = children
+        if self.data_view.accordion.children[0].children[1] is self.data_view.dummy:
+            vbox = self.data_view.accordion.children[0]
+            children = list(vbox.children)
+            children[1] = self.integrator.run()
+            vbox.children = children
             
         try:
             selected_row =  self.data_view.grid.grid_data_out['rows'].iloc[0]
@@ -69,14 +70,7 @@ class NexusDataSetWidget:
             sample_label = h5['entry/sample/description'][()][0].decode('utf8')
             self.selected_img = h5['entry/data/y'][()].T
             
-        label = f'Filename: {filename}' 
-        label+= '\n' 
-        label+= f'Sample Label: {label}'  + '\n' + str(self.integrator.data_model.integrator)
-        label+= '\n' 
-        label+= '\n' 
-        label+= str(self.integrator.data_model.integrator)
         
-        self.integrator.data_view.change_output(label)
         self.integrator.update_image(self.selected_img)
         self.integrator.update_integrator(
             SDD = float(selected_row['detectorDistance']),
@@ -85,6 +79,14 @@ class NexusDataSetWidget:
             y0 = float(selected_row['beamCenterY']),
         )
         self.integrator.integrate()
+        
+        label = f'Filename: {filename}' 
+        label+= '\n' 
+        label+= f'Sample Label: {sample_label}'  
+        label+= '\n' 
+        label+= '\n' 
+        label+= str(self.integrator.data_model.integrator)
+        self.integrator.data_view.change_output(label)
         
     def move(self,*args):
         try:
@@ -197,10 +199,15 @@ class NexusDataSetWidget_DataView:
         
         load_hbox = ipywidgets.HBox([self.load_button,self.load_path])
         move_hbox = ipywidgets.HBox([self.move_button,self.move_path])
-        plot_hbox = ipywidgets.HBox([self.plot_button,self.plot_prev_button,self.plot_next_button])
-        button_vbox = ipywidgets.VBox([load_hbox,move_hbox,plot_hbox])
+        button_vbox = ipywidgets.VBox([load_hbox,move_hbox])
         
-        self.accordion = ipywidgets.Accordion([self.dummy])
+        plot_hbox = ipywidgets.HBox(
+            [self.plot_button,self.plot_prev_button,self.plot_next_button],
+            layout={ 'align_items':'center', 'justify_content':'center' }
+        )
+        raw_data_vbox = ipywidgets.VBox([plot_hbox,self.dummy])
+        
+        self.accordion = ipywidgets.Accordion([raw_data_vbox])
         self.accordion.set_title(0,'Raw Data')
         self.accordion.selected_index = None
         
