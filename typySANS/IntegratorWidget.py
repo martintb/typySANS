@@ -36,7 +36,20 @@ class IntegratorWidget:
         # self.data_view.slider.min = zmin
         # self.data_view.slider.value = [zmin,zmax]
         
-    def update_logscale(self,update):
+    def update_trace_logscale(self,update):
+        checkbox = update['owner']
+        if checkbox.value==True:
+            typ='log'
+        else:
+            typ='linear'
+            
+        if 'log x' in checkbox.description:
+            self.data_view.widget.update_xaxes(type=typ,row=1,col=2)
+        elif 'log y' in checkbox.description:
+            self.data_view.widget.update_yaxes(type=typ,row=1,col=2)
+                
+        
+    def update_image_logscale(self,update):
         logscale = update['owner'].value
         if logscale:
             with warnings.catch_warnings():
@@ -91,7 +104,9 @@ class IntegratorWidget:
         widget = self.data_view.run(data2D.values)
         
         self.data_view.slider.observe(self.update_colorbar,names='value')
-        self.data_view.checkbox.observe(self.update_logscale,names='value')
+        self.data_view.checkbox_z.observe(self.update_image_logscale,names='value')
+        self.data_view.checkbox_y.observe(self.update_trace_logscale,names='value')
+        self.data_view.checkbox_x.observe(self.update_trace_logscale,names='value')
         
         return widget
     
@@ -163,7 +178,8 @@ class IntegratorWidget_DataModel:
             pf_result = self.integrator.integrate1d(
                 data=self.data2D.values,
                 unit='q_A^-1',
-                method='csr_ocl_1,3',
+                #method='csr_ocl_1,3',
+                method='csr_ocl',
                 correctSolidAngle=False,
                 npt=200,
             )
@@ -185,16 +201,36 @@ class IntegratorWidget_DataView(Fit_DataView):
             readout_format='.0f',
         )
         
-        self.checkbox = ipywidgets.Checkbox(
+        self.checkbox_z = ipywidgets.Checkbox(
             value=False,
-            description='log scale',
+            description='log z',
         )
+        
+        self.checkbox_x = ipywidgets.Checkbox(
+            value=True,
+            description='log x',
+        )
+        
+        self.checkbox_y = ipywidgets.Checkbox(
+            value=True,
+            description='log y',
+        )
+        
+        self.widget.update_xaxes(type='log',row=1,col=2)
+        self.widget.update_yaxes(type='log',row=1,col=2)
+        self.widget.update_layout(height=250,width=600,margin=dict(t=30,b=30))
+        
         vbox = ipywidgets.VBox(
             [
                 self.widget,
                 self.slider,
-                self.checkbox,
+                ipywidgets.HBox([
+                    self.checkbox_z,
+                    self.checkbox_y,
+                    self.checkbox_x,
+                ],layout=dict(width='500px')),
                 self.output
-            ]
+            ],
+            layout={ 'align_items':'center', 'justify_content':'center'}
         )
         return vbox
