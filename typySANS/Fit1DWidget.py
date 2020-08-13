@@ -37,6 +37,16 @@ class Fit1DWidget:
         
         return self.data_view.run()
     
+    def update_data(self,x,y):
+        self.data_model.update_data(x,y)
+        self.data_view.update_trace(1,x,y)
+        
+        x = self.data_model.x_fit
+        y = self.data_model.y_fit
+        self.data_view.update_trace(1,x,y)
+        
+        self.data_view.change_output(self.data_model.fit_result.fit_report())
+    
     def update_fit(self,trace,points,state):
         self.data_model.update_mask(points.point_inds)
         self.data_model.fit()
@@ -53,7 +63,9 @@ class Fit1DWidget_DataModel:
         self.model  = model
         self.params = params
         self.fit_params = None
+        self.update_data(x,y)
         
+    def update_data(self,x,y):
         self.data  = xr.DataArray(y,dims=['x'],coords={'x':x})
         self.mask  = np.ones_like(y,dtype=bool)
         self.fit()

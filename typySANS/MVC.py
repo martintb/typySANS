@@ -5,11 +5,12 @@ import xarray as xr
 import ipywidgets
 import plotly.subplots
 import plotly.graph_objs as go
+import warnings
 
 
 class Fit_DataView:
     '''MVC Data Viewer for 2D Data Fitters'''
-    def __init__(self,subplot_kw,height=600,width=600):
+    def __init__(self,subplot_kw,height=450,width=500):
         
         self.output = ipywidgets.Output()
         self.output.layout = ipywidgets.Layout(
@@ -22,7 +23,7 @@ class Fit_DataView:
         self.widget = go.FigureWidget(
             plotly.subplots.make_subplots(**subplot_kw)
         )
-        self.widget.update_layout(height=height, width=width)
+        self.widget.update_layout(height=height,width=width,margin=dict(t=25,b=25))
         
     
     def update_legend(self,legend_kw):
@@ -49,6 +50,7 @@ class Fit_DataView:
             line_kw=dict(color='red',dash='dot',width=0.3)
             
         self.widget.add_shape(
+            name='horizontal',
             xref='paper',
             yref='y',
             x0=x0, x1=x1, y0=y, y1=y,
@@ -61,12 +63,21 @@ class Fit_DataView:
         if line_kw is None:
             line_kw=dict(color='red',dash='dot',width=0.3)
         self.widget.add_shape(
+            name='vertical',
             xref='x',
             yref='paper',
             x0=x, x1=x, y0=y0, y1=y1,
             line=line_kw,
             row=row,col=col,
         )
+        
+    def update_trace(self,name,x,y):
+        for data in self.widget.data:
+            if data.name == name:
+                data.update(x=x,y=y)
+                return
+        warnings.warn(f'Data named "{name}"not found in this widget')
+            
     
     def change_output(self,value):
         self.output.clear_output()
@@ -74,6 +85,9 @@ class Fit_DataView:
             print(value)
     
     def run(self):
-        vbox = ipywidgets.VBox([self.widget,self.output])
+        vbox = ipywidgets.VBox(
+            [self.widget,self.output],
+            layout={ 'align_items':'center', 'justify_content':'center'},
+        )
         return vbox
     

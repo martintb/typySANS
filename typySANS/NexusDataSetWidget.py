@@ -14,6 +14,8 @@ import warnings
 from typySANS.ProgressWidget import ProgressWidget
 from typySANS.ImageWidget import ImageWidget
 from typySANS.IntegratorWidget import IntegratorWidget
+from typySANS.Fit2DWidget import Fit2DWidget
+from typySANS.FitUtil import init_gaussian2D_lmfit
 
 import plotly.graph_objects as go
 
@@ -22,7 +24,11 @@ class NexusDataSetWidget:
         self.data_model = NexusDataSetWidget_DataModel()
         self.data_view = NexusDataSetWidget_DataView()
         
-        self.integrator = IntegratorWidget(np.ones((128,128)))
+        dummy_image = np.ones((128,128))
+        self.integrator = IntegratorWidget(dummy_image)
+        
+        model,params = init_gaussian2D_lmfit()
+        self.fit2D = Fit2DWidget(dummy_image,model,params)
         self.selected_img = None
     
     def load_files(self,*args):
@@ -48,6 +54,29 @@ class NexusDataSetWidget:
         
         grid_data_out['rows'] = grid_data_out['grid'].loc[[index]]
         self.plot_data()
+        
+    def fit_center(self,*args):
+        #initialize 
+        if self.data_view.accordion.children[1].children[1] is self.data_view.dummy:
+            vbox = self.data_view.accordion.children[1]
+            children = list(vbox.children)
+            children[1] = self.fit2D.run()
+            vbox.children = children
+            
+        try:
+            selected_row =  self.data_view.grid.grid_data_out['rows'].iloc[0]
+        except KeyError:
+            return
+        
+        filename = selected_row['filename']#.squeeze()
+            
+        load_path = pathlib.Path(self.data_view.load_path.value)
+        filepath = load_path/filename
+        with h5py.File(filepath,'r') as h5:
+            sample_label = h5['entry/sample/description'][()][0].decode('utf8')
+            self.selected_img = h5['entry/data/y'][()].T
+        
+        self.fit2D.update_image(self.selected_img)
             
     def plot_data(self,*args):
         #initialize 
@@ -117,6 +146,9 @@ class NexusDataSetWidget:
         self.data_view.plot_button.on_click(self.plot_data)
         self.data_view.plot_next_button.on_click(self.plot_increment)
         self.data_view.plot_prev_button.on_click(self.plot_increment)
+        
+        self.data_view.fit_center_button.on_click(self.fit_center)
+        
         return widget
         
                 
@@ -193,6 +225,9 @@ class NexusDataSetWidget_DataView:
         self.plot_next_button   = ipywidgets.Button(description='PLOT NEXT')
         self.plot_prev_button   = ipywidgets.Button(description='PLOT PREV')
         
+        self.fit_center_button   = ipywidgets.Button(description='FIT')
+        self.fit_peak_button     = ipywidgets.Button(description='FIT')
+        
     def run(self):
         self.build_grid()
         self.build_grid_buttons()
@@ -201,14 +236,29 @@ class NexusDataSetWidget_DataView:
         move_hbox = ipywidgets.HBox([self.move_button,self.move_path])
         button_vbox = ipywidgets.VBox([load_hbox,move_hbox])
         
-        plot_hbox = ipywidgets.HBox(
+        raw_plot_buttons = ipywidgets.HBox(
             [self.plot_button,self.plot_prev_button,self.plot_next_button],
             layout={ 'align_items':'center', 'justify_content':'center' }
         )
-        raw_data_vbox = ipywidgets.VBox([plot_hbox,self.dummy])
         
-        self.accordion = ipywidgets.Accordion([raw_data_vbox])
+        beam_center_buttons = ipywidgets.HBox(
+            [self.fit_center_button],
+            layout={ 'align_items':'center', 'justify_content':'center' }
+        )
+        
+        fit_peak_buttons = ipywidgets.HBox(
+            [self.fit_peak_button],
+            layout={ 'align_items':'center', 'justify_content':'center' }
+        )
+        
+        raw_data_vbox = ipywidgets.VBox([raw_plot_buttons,self.dummy])
+        beam_center_vbox = ipywidgets.VBox([beam_center_buttons,self.dummy])
+        fit_peak_vbox = ipywidgets.VBox([fit_peak_buttons,self.dummy])
+        
+        self.accordion = ipywidgets.Accordion([raw_data_vbox,beam_center_vbox,fit_peak_vbox])
         self.accordion.set_title(0,'Raw Data')
+        self.accordion.set_title(1,'Beam Center Fit')
+        self.accordion.set_title(2,'Fit Peak')
         self.accordion.selected_index = None
         
         vbox = ipywidgets.VBox([

@@ -28,6 +28,31 @@ class Fit2DWidget:
     
     def get_fit_param(self,name):
         return self.data_model.fit_result.params[name]
+    
+    def update_image(self,image):
+        self.data_model.update_data(image)
+        self.data_model.fit()
+        self.data_view.change_output(self.data_model.fit_result.fit_report())
+        
+        self.data_view.widget.data[0].update(z=image)
+        
+        y0 = self.data_model.fit_result.params['y0'].value
+        x0 = self.data_model.fit_result.params['x0'].value
+        
+        self.data_view.widget.update_shapes(patch={'x0':x0,'x1':x0},selector={'name':'vertical'})
+        self.data_view.widget.update_shapes(patch={'y0':y0,'y1':y0},selector={'name':'horizontal'})
+        
+        self.data_model.make_slice('xslice','x',x0)
+        x,y = self.data_model.get_slice('xslice','y',fit=False)
+        x_fit,y_fit = self.data_model.get_slice('xslice','y',fit=True)
+        self.data_view.widget.update_traces(selector={'name':'SANS Y'},patch={'x':x,'y':y})
+        self.data_view.widget.update_traces(selector={'name':'Fit Y'},patch={'x':x_fit,'y':y_fit})
+        
+        self.data_model.make_slice('yslice','y',y0)
+        y,x = self.data_model.get_slice('yslice','x',fit=False)
+        y_fit,x_fit = self.data_model.get_slice('yslice','x',fit=True)
+        self.data_view.widget.update_traces(selector={'name':'SANS X'},patch={'x':x,'y':y})
+        self.data_view.widget.update_traces(selector={'name':'Fit X'},patch={'x':x_fit,'y':y_fit})
         
     def run(self):
         img = self.data_model.data.values
@@ -70,12 +95,14 @@ class Fit2DWidget_DataModel:
         self.params = params
         self.slices = {}
         
+        self.update_data(data)
+        if fit_now:
+            self.fit()
+            
+    def update_data(self,data):
         Nx,Ny = np.shape(data)
         x,y,X,Y,self.XY = init_image_mesh(Nx,Ny)
         self.data    = xr.DataArray(data,dims=['y','x'],coords={'x':x,'y':y})
-        
-        if fit_now:
-            self.fit()
         
     def fit(self):
         fit = self.model.fit(self.data.values.ravel(),XY=self.XY,params=self.params)
@@ -99,6 +126,7 @@ class Fit2DWidget_DataModel:
         x = self.slices[name][name2].values
         y = getattr(self.slices[name][name2],index).values
         return x,y
+    
             
 class Fit2DWidget_DataView(Fit_DataView):
     def change_output(self,value):
@@ -107,4 +135,5 @@ class Fit2DWidget_DataView(Fit_DataView):
             print('Warning: Pixel coordinates are one less than Igor due to zero-based indexing!')
             print()
             print(value)
+            
 
